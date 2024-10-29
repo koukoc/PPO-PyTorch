@@ -6,22 +6,36 @@ from datetime import datetime
 import torch
 import numpy as np
 
-import gym
-import roboschool
+# import roboschool
 
+from gym_pybullet_drones.utils.Logger import Logger
+from gym_pybullet_drones.envs.HoverAviary import HoverAviary
+from gym_pybullet_drones.envs.MultiHoverAviary import MultiHoverAviary
+from gym_pybullet_drones.utils.utils import sync, str2bool
+from gym_pybullet_drones.utils.enums import ObservationType, ActionType
 from PPO import PPO
+
+DEFAULT_GUI = False
+DEFAULT_RECORD_VIDEO = False
+DEFAULT_OUTPUT_FOLDER = 'results'
+DEFAULT_COLAB = False
+
+DEFAULT_OBS = ObservationType('kin') # 'kin' or 'rgb'
+DEFAULT_ACT = ActionType('vel') # 'rpm' or 'pid' or 'vel' or 'one_d_rpm' or 'one_d_pid'
+DEFAULT_AGENTS = 3
+DEFAULT_MA = True
 
 ################################### Training ###################################
 def train():
     print("============================================================================================")
 
     ####### initialize environment hyperparameters ######
-    env_name = "RoboschoolWalker2d-v1"
+    env_name = "MultiHover"
 
     has_continuous_action_space = True  # continuous action space; else discrete
 
     max_ep_len = 1000                   # max timesteps in one episode
-    max_training_timesteps = int(3e6)   # break training loop if timeteps > max_training_timesteps
+    max_training_timesteps = int(1e7)   # break training loop if timeteps > max_training_timesteps
 
     print_freq = max_ep_len * 10        # print avg reward in the interval (in num timesteps)
     log_freq = max_ep_len * 2           # log avg reward in the interval (in num timesteps)
@@ -42,22 +56,22 @@ def train():
     eps_clip = 0.2          # clip parameter for PPO
     gamma = 0.99            # discount factor
 
-    lr_actor = 0.0003       # learning rate for actor network
-    lr_critic = 0.001       # learning rate for critic network
+    lr_actor = 1e-6      # learning rate for actor network
+    lr_critic = 1e-6      # learning rate for critic network
 
     random_seed = 0         # set random seed if required (0 = no random seed)
     #####################################################
 
     print("training environment name : " + env_name)
 
-    env = gym.make(env_name)
-
+    env = MultiHoverAviary(num_drones=DEFAULT_AGENTS, obs=DEFAULT_OBS, act=DEFAULT_ACT)
+    
     # state space dimension
-    state_dim = env.observation_space.shape[0]
+    state_dim = 15*DEFAULT_AGENTS
 
     # action space dimension
     if has_continuous_action_space:
-        action_dim = env.action_space.shape[0]
+        action_dim = 4
     else:
         action_dim = env.action_space.n
 
@@ -167,15 +181,21 @@ def train():
     # training loop
     while time_step <= max_training_timesteps:
 
-        state = env.reset()
+        state,info = env.reset(seed=42, options={})
+        
         current_ep_reward = 0
 
         for t in range(1, max_ep_len+1):
-
             # select action with policy
-            action = ppo_agent.select_action(state)
-            state, reward, done, _ = env.step(action)
-
+            # ppo_agent2=ppo_agent
+            state1 = np.hstack(np.array([state[i] for i in range(DEFAULT_AGENTS)]))
+            action1 = ppo_agent.select_action(state1.reshape(1,15*DEFAULT_AGENTS))
+            state2 = np.hstack([np.array([state[1],state[2],state[0]])])
+            action2 = ppo_agent.predictAcion(state2.reshape(1,15*DEFAULT_AGENTS))
+            state3 = np.hstack([np.array([state[2],state[0],state[1]])])
+            action3 = ppo_agent.predictAcion(state3.reshape(1,15*DEFAULT_AGENTS))
+            action = np.array([action1,action2,action3])
+            state, reward, done,_, _ = env.step(action)
             # saving reward and is_terminals
             ppo_agent.buffer.rewards.append(reward)
             ppo_agent.buffer.is_terminals.append(done)

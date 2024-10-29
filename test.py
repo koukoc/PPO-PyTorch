@@ -36,7 +36,7 @@ def test():
     env_name = "RoboschoolWalker2d-v1"
     has_continuous_action_space = True
     max_ep_len = 1000           # max timesteps in one episode
-    action_std = 0.1            # set same std for action distribution which was used while saving
+    action_std = 0.0            # set same std for action distribution which was used while saving
 
     render = True              # render environment on screen
     frame_delay = 0             # if required; add delay b/w frames

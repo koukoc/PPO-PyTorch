@@ -47,29 +47,41 @@ class ActorCritic(nn.Module):
         # actor
         if has_continuous_action_space :
             self.actor = nn.Sequential(
-                            nn.Linear(state_dim, 64),
+                            nn.Linear(state_dim, 1024),
                             nn.Tanh(),
-                            nn.Linear(64, 64),
+                            nn.Linear(1024, 1024),
                             nn.Tanh(),
-                            nn.Linear(64, action_dim),
+                            nn.Linear(1024, 1024),
+                            nn.Tanh(),
+                            nn.Linear(1024, 1024),
+                            nn.Tanh(),
+                            nn.Linear(1024, action_dim),
                             nn.Tanh()
                         )
         else:
             self.actor = nn.Sequential(
-                            nn.Linear(state_dim, 64),
+                            nn.Linear(state_dim, 1024),
                             nn.Tanh(),
-                            nn.Linear(64, 64),
+                            nn.Linear(1024, 1024),
                             nn.Tanh(),
-                            nn.Linear(64, action_dim),
+                            nn.Linear(1024, 1024),
+                            nn.Tanh(),
+                            nn.Linear(1024, 1024),
+                            nn.Tanh(),
+                            nn.Linear(1024, action_dim),
                             nn.Softmax(dim=-1)
                         )
         # critic
         self.critic = nn.Sequential(
-                        nn.Linear(state_dim, 64),
+                        nn.Linear(state_dim, 1024),
                         nn.Tanh(),
-                        nn.Linear(64, 64),
+                        nn.Linear(1024, 1024),
                         nn.Tanh(),
-                        nn.Linear(64, 1)
+                        nn.Linear(1024, 1024),
+                        nn.Tanh(),
+                        nn.Linear(1024, 1024),
+                        nn.Tanh(),
+                        nn.Linear(1024, 1)
                     )
         
     def set_action_std(self, new_action_std):
@@ -197,6 +209,20 @@ class PPO:
 
             return action.item()
 
+    def predictAcion(self, state):
+
+        if self.has_continuous_action_space:
+            with torch.no_grad():
+                state = torch.FloatTensor(state).to(device)
+                action, action_logprob, state_val = self.policy_old.act(state)
+
+            return action.detach().cpu().numpy().flatten()
+        else:
+            with torch.no_grad():
+                state = torch.FloatTensor(state).to(device)
+                action, action_logprob, state_val = self.policy_old.act(state)
+            
+            return action.item()
     def update(self):
         # Monte Carlo estimate of returns
         rewards = []
